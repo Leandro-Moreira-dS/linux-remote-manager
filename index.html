@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Linux Remote Manager</title>
+<style>
+/* ── Reset & Variables ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0e17;
+  --bg2:       #0f1520;
+  --bg3:       #141c2e;
+  --border:    #1e2d45;
+  --border2:   #263550;
+  --blue:      #0ea5e9;
+  --blue-dim:  #0369a1;
+  --green:     #22c55e;
+  --red:       #ef4444;
+  --yellow:    #f59e0b;
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+  --text3:     #475569;
+  --font:      'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --radius:    8px;
+  --shadow:    0 4px 24px rgba(0,0,0,.5);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Login Screen ──────────────────────────────────────────── */
+#login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 0%, #0c1e3a 0%, var(--bg) 70%);
+}
+
+.login-box {
+  width: 360px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: var(--shadow), 0 0 60px rgba(14,165,233,.05);
+}
+
+.login-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-logo svg { width: 48px; height: 48px; color: var(--blue); }
+
+.login-logo h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 12px;
+  letter-spacing: .5px;
+}
+
+.login-logo p { color: var(--text2); font-size: 12px; margin-top: 4px; }
+
+.form-group { margin-bottom: 16px; }
+
+.form-group label {
+  display: block;
+  color: var(--text2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.form-group input:focus { border-color: var(--blue); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.btn-primary  { background: var(--blue); color: #fff; }
+.btn-primary:hover  { background: #38bdf8; }
+.btn-success  { background: var(--green); color: #fff; }
+.btn-success:hover  { background: #16a34a; }
+.btn-danger   { background: var(--red); color: #fff; }
+.btn-danger:hover   { background: #dc2626; }
+.btn-warning  { background: var(--yellow); color: #000; }
+.btn-warning:hover  { background: #d97706; }
+.btn-ghost    { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover    { border-color: var(--blue); color: var(--blue); }
+.btn-full     { width: 100%; justify-content: center; }
+.btn-sm       { padding: 5px 10px; font-size: 11px; }
+
+/* ── Layout Principal ──────────────────────────────────────── */
+#app { display: none; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: 220px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-logo svg { width: 24px; height: 24px; color: var(--blue); flex-shrink: 0; }
+.sidebar-logo span { font-size: 13px; font-weight: 700; color: var(--text); }
+
+.sidebar-nav { flex: 1; padding: 12px 0; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .15s;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-left: 2px solid transparent;
+}
+
+.nav-item:hover  { color: var(--text); background: rgba(14,165,233,.05); }
+.nav-item.active { color: var(--blue); border-left-color: var(--blue); background: rgba(14,165,233,.08); }
+.nav-item svg    { width: 16px; height: 16px; flex-shrink: 0; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Main content */
+.main {
+  margin-left: 220px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+.content { padding: 24px; flex: 1; }
+
+/* ── Sections ──────────────────────────────────────────────── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text2);
+}
+
+.card-body { padding: 20px; }
+
+/* ── Dashboard Stats ───────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--text); margin: 6px 0 2px; }
+.stat-sub   { font-size: 11px; color: var(--text3); }
+
+.stat-card.online  .stat-value { color: var(--green); }
+.stat-card.offline .stat-value { color: var(--red); }
+
+/* ── Machine List ──────────────────────────────────────────── */
+.machines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.machine-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.machine-card:hover { border-color: var(--border2); }
+
+.machine-card.is-online  { border-left: 3px solid var(--green); }
+.machine-card.is-offline { border-left: 3px solid var(--text3); }
+
+.machine-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.machine-name { font-weight: 700; color: var(--text); font-size: 14px; }
+.machine-group { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+.badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.badge-online  { background: rgba(34,197,94,.15); color: var(--green); }
+.badge-offline { background: rgba(71,85,105,.2);  color: var(--text3); }
+
+.machine-meta {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.meta-row svg { width: 12px; height: 12px; color: var(--text3); flex-shrink: 0; }
+.meta-row code { color: var(--blue); font-size: 11px; }
+
+.machine-actions {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Terminal ──────────────────────────────────────────────── */
+.terminal-wrap {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  height: calc(100vh - 140px);
+}
+
+.terminal-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.machine-select-item {
+  padding: 12px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.machine-select-item:hover { border-color: var(--blue); }
+.machine-select-item.selected { border-color: var(--blue); background: rgba(14,165,233,.08); }
+
+.machine-select-item .name { font-weight: 600; color: var(--text); font-size: 13px; }
+.machine-select-item .ip   { color: var(--text2); font-size: 11px; margin-top: 2px; }
+
+.terminal-main {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.terminal-bar {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg3);
+}
+
+.terminal-dots { display: flex; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot-r { background: #ff5f57; }
+.dot-y { background: #febc2e; }
+.dot-g { background: #28c840; }
+
+.terminal-host { font-size: 12px; color: var(--text2); margin-left: 4px; }
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  background: #060a10;
+}
+
+.term-line { display: flex; gap: 8px; margin-bottom: 2px; }
+.term-prompt { color: var(--green); white-space: nowrap; }
+.term-cmd    { color: var(--blue); }
+.term-out    { color: var(--text); white-space: pre-wrap; word-break: break-all; margin-left: 16px; }
+.term-err    { color: var(--red); white-space: pre-wrap; margin-left: 16px; }
+.term-info   { color: var(--text2); font-style: italic; margin-left: 16px; }
+
+.terminal-input-row {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg3);
+}
+
+.prompt-label { color: var(--green); white-space: nowrap; font-size: 12px; }
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--blue);
+  font-family: var(--font);
+  font-size: 12px;
+  caret-color: var(--blue);
+}
+
+/* ── System Info ───────────────────────────────────────────── */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.info-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.info-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.info-value { font-size: 14px; color: var(--text); font-weight: 600; }
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.modal-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Form inside modal */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  outline: none;
+  transition: border-color .2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--blue); }
+.field select option { background: var(--bg3); }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  animation: slideIn .25s ease;
+  max-width: 320px;
+  border-left: 3px solid var(--blue);
+}
+
+.toast.success { border-left-color: var(--green); }
+.toast.error   { border-left-color: var(--red); }
+.toast.warning { border-left-color: var(--yellow); }
+
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Process Table ─────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; padding: 8px 12px; color: var(--text2); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+tr:hover td { background: rgba(14,165,233,.04); }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── Loading spinner ───────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+.empty-state svg { width: 48px; height: 48px; color: var(--border2); margin-bottom: 12px; }
+.empty-state p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+        <path d="M7 8l2 2-2 2M11 12h4" stroke-linecap="round"/>
+      </svg>
+      <h1>Linux Remote Manager</h1>
+      <p>Acesse o painel de controle</p>
+    </div>
+    <div class="form-group">
+      <label>Usuário</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Entrar</button>
+    <p id="login-error" style="color:var(--red);font-size:11px;text-align:center;margin-top:12px;display:none"></p>
+  </div>
+</div>
+
+<!-- ══ APP ══════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+        <path d="M7 8l2 2-2 2M11 12h4" stroke-linecap="round"/>
+      </svg>
+      <span>LRM</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-section="dashboard" onclick="navigate('dashboard', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-section="machines" onclick="navigate('machines', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Máquinas
+      </div>
+      <div class="nav-item" data-section="terminal" onclick="navigate('terminal', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full btn-sm" onclick="doLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div class="topbar-right">
+        <div class="status-dot"></div>
+        <span style="font-size:11px;color:var(--text2)">Conectado</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ──────────────────────────────────── -->
+      <div class="section active" id="section-dashboard">
+        <div class="stats-grid" id="dash-stats">
+          <div class="stat-card">
+            <div class="stat-label">Total</div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-sub">máquinas cadastradas</div>
+          </div>
+          <div class="stat-card online">
+            <div class="stat-label">Online</div>
+            <div class="stat-value" id="stat-online">—</div>
+            <div class="stat-sub">respondendo na porta SSH</div>
+          </div>
+          <div class="stat-card offline">
+            <div class="stat-label">Offline</div>
+            <div class="stat-value" id="stat-offline">—</div>
+            <div class="stat-sub">sem resposta</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Visão Geral das Máquinas</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Atualizar
+            </button>
+          </div>
+          <div class="card-body" id="dash-list">
+            <div class="empty-state">
+              <div class="spinner"></div>
+              <p style="margin-top:12px">Carregando...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MÁQUINAS ───────────────────────────────────── -->
+      <div class="section" id="section-machines">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 style="font-size:14px;font-weight:700;color:var(--text)">Máquinas Cadastradas</h2>
+          <button class="btn btn-primary" onclick="openAddModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova Máquina
+          </button>
+        </div>
+        <div class="machines-grid" id="machines-grid">
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="spinner"></div>
+            <p style="margin-top:12px">Carregando máquinas...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TERMINAL ───────────────────────────────────── -->
+      <div class="section" id="section-terminal">
+        <div class="terminal-wrap">
+          <div class="terminal-sidebar">
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:0 2px;margin-bottom:4px">Selecionar Máquina</div>
+            <div id="terminal-machine-list">
+              <div class="empty-state" style="padding:20px">
+                <p>Nenhuma máquina</p>
+              </div>
+            </div>
+            <div id="sys-info-panel" style="display:none">
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Sistema</span>
+                  <button class="btn btn-ghost btn-sm" onclick="loadSysInfo()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  </button>
+                </div>
+                <div class="card-body" style="padding:12px">
+                  <div id="sys-info-content" class="info-grid" style="grid-template-columns:1fr;gap:8px"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+                <button class="btn btn-warning btn-sm" onclick="sendReboot()">Reboot</button>
+                <button class="btn btn-danger btn-sm"  onclick="sendShutdown()">Shutdown</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-main">
+            <div class="terminal-bar">
+              <div class="terminal-dots">
+                <div class="dot dot-r"></div>
+                <div class="dot dot-y"></div>
+                <div class="dot dot-g"></div>
+              </div>
+              <span class="terminal-host" id="terminal-host">Nenhuma máquina selecionada</span>
+            </div>
+            <div class="terminal-output" id="terminal-output">
+              <div class="term-info">Selecione uma máquina na lista ao lado para iniciar o terminal.</div>
+            </div>
+            <div class="terminal-input-row">
+              <span class="prompt-label" id="prompt-label">$</span>
+              <input class="terminal-input" id="terminal-input" type="text"
+                     placeholder="Digite um comando..." disabled
+                     onkeydown="handleTermKey(event)"/>
+              <button class="btn btn-primary btn-sm" onclick="execCommand()">Run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ MODAL: Adicionar / Editar máquina ═════════════════════ -->
+<div class="modal-overlay" id="machine-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Nova Máquina</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="field-id"/>
+      <div class="field">
+        <label>Nome *</label>
+        <input type="text" id="field-name" placeholder="Servidor de Produção"/>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Endereço MAC *</label>
+          <input type="text" id="field-mac" placeholder="AA:BB:CC:DD:EE:FF"/>
+        </div>
+        <div class="field">
+          <label>Grupo</label>
+          <input type="text" id="field-group" placeholder="Servidores"/>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>IP / Hostname *</label>
+          <input type="text" id="field-ip" placeholder="192.168.1.100"/>
+        </div>
+        <div class="field">
+          <label>Porta SSH</label>
+          <input type="number" id="field-port" placeholder="22" value="22"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Usuário SSH</label>
+        <input type="text" id="field-user" placeholder="root"/>
+      </div>
+      <div class="field">
+        <label>Tipo de Autenticação</label>
+        <select id="field-auth" onchange="toggleAuthFields()">
+          <option value="password">Senha</option>
+          <option value="key">Chave SSH</option>
+        </select>
+      </div>
+      <div id="auth-password-field" class="field">
+        <label>Senha SSH</label>
+        <input type="password" id="field-password" placeholder="••••••••"/>
+      </div>
+      <div id="auth-key-field" class="field" style="display:none">
+        <label>Caminho da Chave Privada</label>
+        <input type="text" id="field-key" placeholder="/home/user/.ssh/id_rsa"/>
+      </div>
+      <div class="field">
+        <label>Notas</label>
+        <input type="text" id="field-notes" placeholder="Observações opcionais"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMachine()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ══ Estado global ════════════════════════════════════════════
+const state = { machines: [], selectedId: null, cmdHistory: [], histIdx: -1 };
+
+// ══ API ══════════════════════════════════════════════════════
+async function api(action, data = {}) {
+  const r = await fetch('api/handler.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...data })
+  });
+  return r.json();
+}
+
+// ══ Auth ═════════════════════════════════════════════════════
+async function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const err  = document.getElementById('login-error');
+  err.style.display = 'none';
+
+  const res = await api('login', { user, pass });
+  if (res.success) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadDashboard();
+    loadMachines();
+  } else {
+    err.textContent = res.message;
+    err.style.display = 'block';
+  }
+}
+
+async function doLogout() {
+  await api('logout');
+  location.reload();
+}
+
+// Enter no login
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ══ Navegação ════════════════════════════════════════════════
+function navigate(section, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + section).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('topbar-title').textContent = el.textContent.trim();
+
+  if (section === 'machines') loadMachines();
+  if (section === 'terminal') renderTerminalMachineList();
+  if (section === 'dashboard') loadDashboard();
+}
+
+// ══ Dashboard ════════════════════════════════════════════════
+async function loadDashboard() {
+  const res = await api('machines_list');
+  if (!res.success) return;
+  state.machines = res.machines;
+
+  const online  = res.machines.filter(m => m.online).length;
+  const offline = res.machines.length - online;
+
+  document.getElementById('stat-total').textContent   = res.machines.length;
+  document.getElementById('stat-online').textContent  = online;
+  document.getElementById('stat-offline').textContent = offline;
+
+  const list = document.getElementById('dash-list');
+  if (!res.machines.length) {
+    list.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <p>Nenhuma máquina cadastrada ainda.<br>Vá em <strong>Máquinas</strong> para adicionar.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = `<table>
+    <thead><tr>
+      <th>Nome</th><th>IP</th><th>MAC</th><th>Grupo</th><th>Status</th><th>Ações</th>
+    </tr></thead>
+    <tbody>
+    ${res.machines.map(m => `
+      <tr>
+        <td style="font-weight:600">${esc(m.name)}</td>
+        <td><code style="color:var(--blue)">${esc(m.ip)}</code></td>
+        <td><code style="color:var(--text2);font-size:11px">${esc(m.mac_fmt)}</code></td>
+        <td style="color:var(--text2)">${esc(m.group)}</td>
+        <td><span class="badge ${m.online ? 'badge-online' : 'badge-offline'}">${m.online ? 'Online' : 'Offline'}</span></td>
+        <td>
+          <button class="btn btn-success btn-sm" onclick="sendWOL('${m.id}')">WoL</button>
+          <button class="btn btn-primary btn-sm" onclick="openTerminalFor('${m.id}')">SSH</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ══ Máquinas ═════════════════════════════════════════════════
+async function loadMachines() {
+  const res = await api('machines_list');
+  if (!res.success) return;
+  state.machines = res.machines;
+  renderMachines();
+}
+
+function renderMachines() {
+  const grid = document.getElementById('machines-grid');
+  if (!state.machines.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--border2)"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <p style="margin-top:12px">Nenhuma máquina cadastrada.<br>Clique em <strong>Nova Máquina</strong> para começar.</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = state.machines.map(m => `
+    <div class="machine-card ${m.online ? 'is-online' : 'is-offline'}">
+      <div class="machine-head">
+        <div>
+          <div class="machine-name">${esc(m.name)}</div>
+          <div class="machine-group">${esc(m.group)}</div>
+        </div>
+        <span class="badge ${m.online ? 'badge-online' : 'badge-offline'}">${m.online ? 'Online' : 'Offline'}</span>
+      </div>
+      <div class="machine-meta">
+        <div class="meta-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>IP:</span><code>${esc(m.ip)}:${m.port}</code>
+        </div>
+        <div class="meta-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>
+          <span>MAC:</span><code>${esc(m.mac_fmt)}</code>
+        </div>
+        <div class="meta-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>User:</span><code>${esc(m.user)}</code>
+        </div>
+        ${m.notes ? `<div class="meta-row" style="color:var(--text3);font-size:11px">${esc(m.notes)}</div>` : ''}
+      </div>
+      <div class="machine-actions">
+        <button class="btn btn-success btn-sm" onclick="sendWOL('${m.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Wake-on-LAN
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openTerminalFor('${m.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Terminal SSH
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditModal('${m.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMachine('${m.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══ WoL ══════════════════════════════════════════════════════
+async function sendWOL(id) {
+  toast('Enviando Magic Packet...', 'info');
+  const res = await api('wol_send', { id });
+  toast(res.message, res.success ? 'success' : 'error');
+}
+
+// ══ Terminal ═════════════════════════════════════════════════
+function renderTerminalMachineList() {
+  const list = document.getElementById('terminal-machine-list');
+  if (!state.machines.length) {
+    list.innerHTML = `<div class="empty-state" style="padding:20px"><p>Cadastre máquinas primeiro</p></div>`;
+    return;
+  }
+  list.innerHTML = state.machines.map(m => `
+    <div class="machine-select-item ${state.selectedId === m.id ? 'selected' : ''}" onclick="selectMachine('${m.id}')">
+      <div class="name">${esc(m.name)}</div>
+      <div class="ip">${esc(m.ip)} · ${m.online ? '<span style="color:var(--green)">Online</span>' : '<span style="color:var(--text3)">Offline</span>'}</div>
+    </div>
+  `).join('');
+}
+
+async function selectMachine(id) {
+  state.selectedId = id;
+  const m = state.machines.find(x => x.id === id);
+  if (!m) return;
+
+  renderTerminalMachineList();
+  document.getElementById('terminal-host').textContent = `${m.user}@${m.ip}`;
+  document.getElementById('prompt-label').textContent = `${m.user}@${m.name} $`;
+  document.getElementById('terminal-input').disabled = false;
+  document.getElementById('terminal-input').focus();
+
+  const out = document.getElementById('terminal-output');
+  out.innerHTML = `<div class="term-info">Conectado a ${esc(m.name)} (${esc(m.ip)}). Digite um comando.</div>`;
+
+  document.getElementById('sys-info-panel').style.display = 'block';
+  await loadSysInfo();
+}
+
+function openTerminalFor(id) {
+  navigate('terminal', document.querySelector('[data-section="terminal"]'));
+  selectMachine(id);
+}
+
+async function loadSysInfo() {
+  if (!state.selectedId) return;
+  const panel = document.getElementById('sys-info-content');
+  panel.innerHTML = `<div style="text-align:center"><div class="spinner"></div></div>`;
+
+  const res = await api('ssh_info', { id: state.selectedId });
+  if (!res.success) {
+    panel.innerHTML = `<div style="color:var(--red);font-size:11px">${esc(res.message)}</div>`;
+    return;
+  }
+
+  const labels = { hostname: 'Hostname', os: 'Sistema', uptime: 'Uptime', cpu: 'CPU %', ram: 'RAM', disk: 'Disco', ip: 'IP Local', processes: 'Processos' };
+  panel.innerHTML = Object.entries(res.info).map(([k, v]) => `
+    <div class="info-item">
+      <div class="info-label">${labels[k] || k}</div>
+      <div class="info-value" style="font-size:12px;word-break:break-all">${esc(v)}</div>
+    </div>
+  `).join('');
+}
+
+function handleTermKey(e) {
+  if (e.key === 'Enter') { execCommand(); return; }
+  if (e.key === 'ArrowUp') {
+    if (state.histIdx < state.cmdHistory.length - 1) {
+      state.histIdx++;
+      e.target.value = state.cmdHistory[state.cmdHistory.length - 1 - state.histIdx] || '';
+    }
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowDown') {
+    if (state.histIdx > 0) {
+      state.histIdx--;
+      e.target.value = state.cmdHistory[state.cmdHistory.length - 1 - state.histIdx] || '';
+    } else {
+      state.histIdx = -1;
+      e.target.value = '';
+    }
+    e.preventDefault();
+  }
+}
+
+async function execCommand() {
+  const input = document.getElementById('terminal-input');
+  const cmd   = input.value.trim();
+  if (!cmd || !state.selectedId) return;
+
+  state.cmdHistory.push(cmd);
+  state.histIdx = -1;
+  input.value = '';
+
+  const out = document.getElementById('terminal-output');
+  const m   = state.machines.find(x => x.id === state.selectedId);
+  const prompt = m ? `${m.user}@${m.name}` : 'user@host';
+
+  // Limpar terminal
+  if (cmd === 'clear' || cmd === 'cls') { out.innerHTML = ''; return; }
+
+  // Exibe o comando digitado
+  out.innerHTML += `<div class="term-line">
+    <span class="term-prompt">${esc(prompt)} $</span>
+    <span class="term-cmd">${esc(cmd)}</span>
+  </div>`;
+
+  // Spinner temporário
+  const loadId = 'load-' + Date.now();
+  out.innerHTML += `<div id="${loadId}" class="term-info">executando...</div>`;
+  out.scrollTop = out.scrollHeight;
+
+  const res = await api('ssh_exec', { id: state.selectedId, command: cmd });
+
+  document.getElementById(loadId)?.remove();
+
+  if (!res.success && res.message) {
+    out.innerHTML += `<div class="term-err">${esc(res.message)}</div>`;
+  } else {
+    if (res.output) out.innerHTML += `<div class="term-out">${esc(res.output)}</div>`;
+    if (res.error)  out.innerHTML += `<div class="term-err">${esc(res.error)}</div>`;
+  }
+
+  out.scrollTop = out.scrollHeight;
+  input.focus();
+}
+
+async function sendReboot() {
+  if (!confirm('Rebootar esta máquina?')) return;
+  const res = await api('ssh_reboot', { id: state.selectedId });
+  toast(res.message, res.success ? 'warning' : 'error');
+}
+
+async function sendShutdown() {
+  if (!confirm('Desligar esta máquina? Ela não responderá mais até ser ligada manualmente ou via WoL.')) return;
+  const res = await api('ssh_shutdown', { id: state.selectedId });
+  toast(res.message, res.success ? 'warning' : 'error');
+}
+
+// ══ Modal ════════════════════════════════════════════════════
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Nova Máquina';
+  ['id','name','mac','ip','group','user','password','key','notes'].forEach(f => {
+    const el = document.getElementById('field-' + f);
+    if (el) el.value = f === 'user' ? 'root' : '';
+  });
+  document.getElementById('field-port').value = 22;
+  document.getElementById('field-auth').value = 'password';
+  toggleAuthFields();
+  document.getElementById('machine-modal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const m = state.machines.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modal-title').textContent = 'Editar Máquina';
+  document.getElementById('field-id').value       = m.id;
+  document.getElementById('field-name').value     = m.name;
+  document.getElementById('field-mac').value      = m.mac_fmt;
+  document.getElementById('field-ip').value       = m.ip;
+  document.getElementById('field-port').value     = m.port;
+  document.getElementById('field-user').value     = m.user;
+  document.getElementById('field-group').value    = m.group;
+  document.getElementById('field-notes').value    = m.notes;
+  document.getElementById('field-auth').value     = m.auth_type;
+  document.getElementById('field-key').value      = m.key_path || '';
+  toggleAuthFields();
+  document.getElementById('machine-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('machine-modal').classList.remove('open');
+}
+
+function toggleAuthFields() {
+  const type = document.getElementById('field-auth').value;
+  document.getElementById('auth-password-field').style.display = type === 'password' ? '' : 'none';
+  document.getElementById('auth-key-field').style.display      = type === 'key' ? '' : 'none';
+}
+
+async function saveMachine() {
+  const id = document.getElementById('field-id').value;
+  const data = {
+    name:      document.getElementById('field-name').value,
+    mac:       document.getElementById('field-mac').value,
+    ip:        document.getElementById('field-ip').value,
+    port:      document.getElementById('field-port').value,
+    user:      document.getElementById('field-user').value,
+    group:     document.getElementById('field-group').value,
+    notes:     document.getElementById('field-notes').value,
+    auth_type: document.getElementById('field-auth').value,
+    password:  document.getElementById('field-password').value,
+    key_path:  document.getElementById('field-key').value,
+  };
+
+  if (!data.name || !data.mac || !data.ip) {
+    toast('Preencha os campos obrigatórios: Nome, MAC e IP', 'error');
+    return;
+  }
+
+  const action = id ? 'machine_update' : 'machine_add';
+  if (id) data.id = id;
+
+  const res = await api(action, data);
+  if (res.success) {
+    toast(id ? 'Máquina atualizada!' : 'Máquina adicionada!', 'success');
+    closeModal();
+    loadMachines();
+    loadDashboard();
+  } else {
+    toast(res.message, 'error');
+  }
+}
+
+async function deleteMachine(id) {
+  if (!confirm('Remover esta máquina?')) return;
+  const res = await api('machine_delete', { id });
+  if (res.success) {
+    toast('Máquina removida', 'success');
+    loadMachines();
+    loadDashboard();
+  }
+}
+
+// ══ Toast ════════════════════════════════════════════════════
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ══ Utils ════════════════════════════════════════════════════
+function esc(str) {
+  if (!str && str !== 0) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══ Init ═════════════════════════════════════════════════════
+(async () => {
+  const res = await api('check_session');
+  if (res.authenticated) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    await loadDashboard();
+    await loadMachines();
+  }
+})();
+</script>
+</body>
+</html>
